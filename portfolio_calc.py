@@ -17,7 +17,7 @@ import pandas as pd
 observations = pd.read_csv("C:\\Users\\U447354\\Documents\\Python Scripts\\Beta\\IndexData.csv",index_col=0,header=0)
 cycle=pd.read_csv("C:\\Users\\U447354\\Documents\\Python Scripts\\Beta\\CycleVar.csv",index_col=0,header=0)
 hist_probs=pd.read_csv("C:\\Users\\U447354\\Documents\\Python Scripts\\Beta\\predict_probs12.csv",index_col=0,header=0)
-
+index_type=pd.read_csv("C:\\Users\\U447354\\Documents\\Python Scripts\\Beta\\Dict_Index.csv",index_col=0,header=0)
 
 
 def preprocess_data(level_df):
@@ -26,10 +26,12 @@ def preprocess_data(level_df):
     level_df = level_df.dropna()
     return(level_df)
 
-def returns_dataframe(clean_df,periods=1):
+def returns_dataframe(clean_df,index_type_df,periods=1):
     "leveldf: --"
     returns = np.log(clean_df)
     returns -= returns.shift(periods)
+    yield_tickers = index_type_df[index_type_df['Type'] == 'Yield'].index.values
+    returns.ix[:,yield_tickers] = clean_df.ix[:,yield_tickers] - clean_df.ix[:,yield_tickers].shift(periods) 
     return(returns)
 
 def merge_cycle_obs(day_df,month_df,string,default = 0):
@@ -53,6 +55,25 @@ def normalize_probs(probs_df):
     norm_probs = new_probs.div(sum_row, axis = 0)
     return(norm_probs)
 
+def expected_downside_risk_v1(merged_df,norm_probs,thresh=0):
+    thresh_df = merged_df - thresh
+    index_var = merged_df['Cycle'].unique()
+    index_ticker = merged_df.columns.values[:-1]
+    
+    for i in index_var:
+        for j in index_ticker:
+            initial_vector=thresh_df.loc[thresh_df['Cycle'] == i][j]
+            
+    
+    
+    #for i in total_thresh_df    
+    
+    pass
+
+def expected_absolute_downside_risk_v1(merged_df,norm_probs):
+    
+    pass
+
 def expected_returns_prob_v1(merged_df,norm_probs):
     summary_df = merged_df.groupby('Cycle', as_index = True).mean().T
     prob_vector = pd.np.array(norm_probs.tail(1))
@@ -63,7 +84,7 @@ def covariance_matrix_prob_v1(merged_df,norm_probs):
     total_cov = merged_df.groupby('Cycle', as_index=True).cov()
     index_var = merged_df['Cycle'].unique()
     prob_vector = pd.np.array(norm_probs.tail(1))
-    
+
     cov_matrix = 0
     for i in index_var:
         cov_matrix += total_cov.loc[i,:] * prob_vector[:,i-1]
@@ -72,7 +93,7 @@ def covariance_matrix_prob_v1(merged_df,norm_probs):
 
 clean_obs = preprocess_data(observations)
 clean_cycle = preprocess_data(cycle)
-returns_obs = returns_dataframe(clean_obs)
+returns_obs = returns_dataframe(clean_obs,index_type)
 returns_obs = returns_obs.dropna()
 index_cycle = merge_cycle_obs(returns_obs,clean_cycle,'Cycle')
 clean_index_cycle = clean_cycle_merge(index_cycle,'Cycle')
