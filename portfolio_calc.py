@@ -18,7 +18,7 @@ observations = pd.read_csv("C:\\Users\\U447354\\Documents\\Python Scripts\\Beta\
 cycle=pd.read_csv("C:\\Users\\U447354\\Documents\\Python Scripts\\Beta\\CycleVar.csv",index_col=0,header=0)
 hist_probs=pd.read_csv("C:\\Users\\U447354\\Documents\\Python Scripts\\Beta\\predict_probs12.csv",index_col=0,header=0)
 index_type=pd.read_csv("C:\\Users\\U447354\\Documents\\Python Scripts\\Beta\\Dict_Index.csv",index_col=0,header=0)
-
+cpi_timeseries = pd.read_csv("C:\\Users\\U447354\\Documents\\Python Scripts\\Beta\\CPI.csv",index_col=0,header=0)
 
 def preprocess_data(level_df):
     "leveldf: The dataframe that is going to be indexed and cleaned"
@@ -32,7 +32,24 @@ def returns_dataframe(clean_df,index_type_df,periods=1):
     returns -= returns.shift(periods)
     yield_tickers = index_type_df[index_type_df['Type'] == 'Yield'].index.values
     returns.ix[:,yield_tickers] = clean_df.ix[:,yield_tickers] - clean_df.ix[:,yield_tickers].shift(periods) 
-    return(returns)
+    return(round(returns,13))
+    
+def dayly_cpi_return(cpi_df,periods=1,scale=12):
+    returns_cpi = round( (cpi_df.diff(periods) / cpi_df.shift(periods) + 1) ** (1/scale) - 1 , 13)
+    new_index = pd.DatetimeIndex( start=cpi_df.index.values[0], end=cpi_df.index.values[-1], freq ='D')
+    dayly_returns = returns_cpi.reindex(new_index)
+    dayly_returns.fillna(method='pad',inplace=True)
+    dayly_returns.dropna(axis=0,inplace=True)
+    return(dayly_returns)
+
+def excess_returns(cpi_df,returns_df):
+    excess_returns = returns_df.copy(deep=True)
+    for i in excess_returns.index.values:
+        excess_returns.ix[i,:] = returns_df.ix[i,:] - np.array( cpi_df.ix[i,:].values)
+    return(excess_returns)
+    
+    
+    
 
 def merge_cycle_obs(day_df,month_df,string,default = 0):
     day_df[string] = default
@@ -63,9 +80,6 @@ def expected_downside_risk_v1(merged_df,norm_probs,thresh=0):
     for i in index_var:
         for j in index_ticker:
             initial_vector=thresh_df.loc[thresh_df['Cycle'] == i][j]
-            
-    
-    
     #for i in total_thresh_df    
     
     pass
@@ -92,10 +106,20 @@ def covariance_matrix_prob_v1(merged_df,norm_probs):
 
 
 clean_obs = preprocess_data(observations)
+clean_cpi = preprocess_data(cpi_timeseries)
 clean_cycle = preprocess_data(cycle)
+
 returns_obs = returns_dataframe(clean_obs,index_type)
 returns_obs = returns_obs.dropna()
-index_cycle = merge_cycle_obs(returns_obs,clean_cycle,'Cycle')
+
+
+#TO DO Create the excess returns
+dayly_cpi_return = dayly_cpi_return(clean_cpi)
+
+#Finish the excess returns
+excess_returns_obs = excess_returns(dayly_cpi_return,returns_obs)
+
+index_cycle = merge_cycle_obs(excess_returns_obs,clean_cycle,'Cycle')
 clean_index_cycle = clean_cycle_merge(index_cycle,'Cycle')
 normal_probs = normalize_probs(hist_probs)
 ERs = expected_returns_prob_v1(clean_index_cycle, normal_probs)
