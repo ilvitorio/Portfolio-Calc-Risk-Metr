@@ -48,9 +48,6 @@ def excess_returns(cpi_df,returns_df):
         excess_returns.ix[i,:] = returns_df.ix[i,:] - np.array( cpi_df.ix[i,:].values)
     return(excess_returns)
     
-    
-    
-
 def merge_cycle_obs(day_df,month_df,string,default = 0):
     day_df[string] = default
     var_merge = month_df[string].unique()
@@ -72,20 +69,26 @@ def normalize_probs(probs_df):
     norm_probs = new_probs.div(sum_row, axis = 0)
     return(norm_probs)
 
-def expected_downside_risk_v1(merged_df,norm_probs,thresh=0):
+def expected_downside_risk_v1(merged_df,norm_probs,thresh=0,power=2):
     thresh_df = merged_df - thresh
     index_var = merged_df['Cycle'].unique()
     index_ticker = merged_df.columns.values[:-1]
+    downside_df = pd.DataFrame(index=index_ticker, columns=index_var)    
+    prob_vector = pd.np.array(norm_probs.tail(1))    
     
     for i in index_var:
         for j in index_ticker:
             initial_vector=thresh_df.loc[thresh_df['Cycle'] == i][j]
-    #for i in total_thresh_df    
+            downside_df.ix[j,i]=(initial_vector[ initial_vector < 0 ] ** 2).mean()
     
-    pass
+    downside_metrics = 0
+    for i in index_var:
+        downside_metrics += downside_df.loc[:,i] * prob_vector[:,i-1]
+    
+    return(downside_metrics)
+    
 
 def expected_absolute_downside_risk_v1(merged_df,norm_probs):
-    
     pass
 
 def expected_returns_prob_v1(merged_df,norm_probs):
@@ -122,5 +125,6 @@ excess_returns_obs = excess_returns(dayly_cpi_return,returns_obs)
 index_cycle = merge_cycle_obs(excess_returns_obs,clean_cycle,'Cycle')
 clean_index_cycle = clean_cycle_merge(index_cycle,'Cycle')
 normal_probs = normalize_probs(hist_probs)
+Downside = expected_downside_risk_v1(clean_index_cycle, normal_probs)
 ERs = expected_returns_prob_v1(clean_index_cycle, normal_probs)
 Cov_matrix = covariance_matrix_prob_v1(clean_index_cycle, normal_probs)
