@@ -103,7 +103,11 @@ def expected_omega_v1(merged_df,norm_probs,thresh=0):
             initial_vector=thresh_df.loc[thresh_df['Cycle'] == i][j]
             upside_omega_df.ix[j,i]=((initial_vector[ initial_vector > 0 ])).sum()
             downside_omega_df.ix[j,i]=(-1) * ((initial_vector[ initial_vector < 0 ])).sum()
-            omega_df.ix[j,i]= upside_omega_df.ix[j,i] / downside_omega_df.ix[j,i]
+
+            if downside_omega_df.ix[j,i] != 0: 
+                omega_df.ix[j,i]= upside_omega_df.ix[j,i] / downside_omega_df.ix[j,i]
+            else:
+                omega_df.ix[j,i]= np.nan
             
     upside_omega_metrics = 0
     downside_omega_metrics = 0
