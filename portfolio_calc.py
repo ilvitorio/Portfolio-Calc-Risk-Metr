@@ -71,6 +71,7 @@ def normalize_probs(probs_df):
 
 def expected_downside_risk_v1(merged_df,norm_probs,thresh=0,power=2):
     thresh_df = merged_df - thresh
+    thresh_df['Cycle'] += thresh
     index_var = merged_df['Cycle'].unique()
     index_ticker = merged_df.columns.values[:-1]
     downside_df = pd.DataFrame(index=index_ticker, columns=index_var)    
@@ -86,10 +87,37 @@ def expected_downside_risk_v1(merged_df,norm_probs,thresh=0,power=2):
         downside_metrics += downside_df.loc[:,i] * prob_vector[:,i-1]
     
     return(downside_metrics)
+
+def expected_omega_v1(merged_df,norm_probs,thresh=0):
+    thresh_df = merged_df - thresh
+    thresh_df['Cycle'] += thresh
+    index_var = merged_df['Cycle'].unique()
+    index_ticker = merged_df.columns.values[:-1]
+    upside_omega_df = pd.DataFrame(index=index_ticker, columns=index_var)
+    downside_omega_df = pd.DataFrame(index=index_ticker, columns=index_var)
+    omega_df = pd.DataFrame(index=index_ticker, columns=index_var)
+    prob_vector = pd.np.array(norm_probs.tail(1))    
     
+    for i in index_var:
+        for j in index_ticker:
+            initial_vector=thresh_df.loc[thresh_df['Cycle'] == i][j]
+            upside_omega_df.ix[j,i]=((initial_vector[ initial_vector > 0 ])).sum()
+            downside_omega_df.ix[j,i]=(-1) * ((initial_vector[ initial_vector < 0 ])).sum()
+            omega_df.ix[j,i]= upside_omega_df.ix[j,i] / downside_omega_df.ix[j,i]
+            
+    upside_omega_metrics = 0
+    downside_omega_metrics = 0
+    omega_metrics = 0
+    for i in index_var:
+        upside_omega_metrics    += upside_omega_df.loc[:,i] * prob_vector[:,i-1]
+        downside_omega_metrics  += downside_omega_df.loc[:,i] * prob_vector[:,i-1]
+        omega_metrics           += omega_df.loc[:,i] * prob_vector[:,i-1]
+        
+    return(upside_omega_metrics,downside_omega_metrics,omega_metrics)
 
 def expected_absolute_downside_risk_v1(merged_df,norm_probs,thresh=0,power=2):
     thresh_df = merged_df - thresh
+    thresh_df['Cycle'] += thresh
     index_var = merged_df['Cycle'].unique()
     index_ticker = merged_df.columns.values[:-1]
     abs_downside_df = pd.DataFrame(index=index_ticker, columns=index_var)    
@@ -144,3 +172,4 @@ Downside = expected_downside_risk_v1(clean_index_cycle, normal_probs)
 Abs_Downside = expected_absolute_downside_risk_v1(clean_index_cycle, normal_probs)
 ERs = expected_returns_prob_v1(clean_index_cycle, normal_probs)
 Cov_matrix = covariance_matrix_prob_v1(clean_index_cycle, normal_probs)
+(UpOmega,DownOmega,Omega) = expected_omega_v1(clean_index_cycle, normal_probs,thresh = 0.001) 
