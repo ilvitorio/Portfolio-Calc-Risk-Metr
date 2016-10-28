@@ -154,6 +154,16 @@ def covariance_matrix_prob_v1(merged_df,norm_probs):
         cov_matrix += total_cov.loc[i,:] * prob_vector[:,i-1]
     return(cov_matrix)
 
+def month_aggregation(dayly_excess):
+    how_dict={}
+    for i in dayly_excess.columns.values:
+        if i == 'Cycle':
+            how_dict[i] = 'last'
+        else:
+            how_dict[i] = 'sum'
+    month_excess_returns = dayly_excess.resample('M',how=how_dict)
+    
+    return(month_excess_returns)
 
 clean_obs = preprocess_data(observations)
 clean_cpi = preprocess_data(cpi_timeseries)
